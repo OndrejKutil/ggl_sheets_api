@@ -10,8 +10,9 @@ import logging
 import os
 from typing import List, Dict, Any
 import pandas as pd
+import json
 
-# Get the absolute path to the token file relative to this script
+# Get the absolute path to the project root
 current_dir = os.path.dirname(os.path.abspath(__file__))
 root_dir = os.path.dirname(current_dir)
 
@@ -22,28 +23,44 @@ handler = logging.FileHandler(os.path.join(root_dir, 'data_fetch.log'))
 handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
 logger.addHandler(handler)
 
-# Try Render's secret file path first, then fall back to local development path
-render_token_path = os.path.join(root_dir, 'etc/secrets', 'token.json')
-local_token_path = os.path.join(root_dir, 'tokens', 'token.json')
 
-# Use Render path if it exists (production), otherwise use local path (development)
-if os.path.exists(render_token_path):
-    TOKEN_FILE_PATH = render_token_path
-    logger.info("Using Render secret file path for token.json")
-elif os.path.exists(local_token_path):
-    TOKEN_FILE_PATH = local_token_path
-    logger.info("Using local development path for token.json")
-else:
-    # Default to Render path if neither exists (will cause an error, but that's expected)
-    TOKEN_FILE_PATH = render_token_path
-    logger.warning("Neither Render nor local token file found, defaulting to Render path")
+def get_credentials_dict():
+    """Get Google Service Account credentials from environment variable or local file."""
+    # Try to get credentials from environment variable first (for Render deployment)
+    google_credentials = os.getenv('GOOGLE_CREDENTIALS')
+    
+    if google_credentials:
+        try:
+            # Parse the JSON string from environment variable
+            credentials_dict = json.loads(google_credentials)
+            logger.info("Using Google credentials from environment variable")
+            return credentials_dict
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse GOOGLE_CREDENTIALS environment variable: {e}")
+            raise
+    
+    # Fall back to local file for development
+    local_token_path = os.path.join(root_dir, 'tokens', 'token.json')
+    if os.path.exists(local_token_path):
+        try:
+            with open(local_token_path, 'r') as f:
+                credentials_dict = json.load(f)
+            logger.info("Using Google credentials from local token file")
+            return credentials_dict
+        except (json.JSONDecodeError, IOError) as e:
+            logger.error(f"Failed to read local token file: {e}")
+            raise
+    
+    # If neither method works, raise an error
+    raise FileNotFoundError("Google credentials not found in environment variable 'GOOGLE_CREDENTIALS' or local token file")
 
 
 def get_gspread_client() -> gspread.Client:
     """Get an authenticated gspread client."""
     try:
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-        creds = ServiceAccountCredentials.from_json_keyfile_name(TOKEN_FILE_PATH, scope)
+        credentials_dict = get_credentials_dict()
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(credentials_dict, scope)
         return gspread.authorize(creds)
     except Exception as e:
         logger.error(f"Failed to get gspread client: {e}")
