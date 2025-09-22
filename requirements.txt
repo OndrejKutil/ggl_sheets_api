@@ -1,0 +1,6 @@
+pandas
+fastapi
+gspread
+oauth2client
+dotenv
+uvicorn

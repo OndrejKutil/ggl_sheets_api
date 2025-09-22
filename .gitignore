@@ -1,0 +1,11 @@
+.venv/
+
+test.py
+
+.env
+
+tokens/
+
+__pycache__/
+
+*.log
