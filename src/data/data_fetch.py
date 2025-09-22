@@ -14,14 +14,29 @@ import pandas as pd
 # Get the absolute path to the token file relative to this script
 current_dir = os.path.dirname(os.path.abspath(__file__))
 root_dir = os.path.dirname(current_dir)
-TOKEN_FILE_PATH = os.path.join(root_dir, 'etc/secrets', 'token.json')
 
-# Set up logging
+# Set up logging first
 logger = logging.getLogger('data_fetch')
 logger.setLevel(logging.INFO)
 handler = logging.FileHandler(os.path.join(root_dir, 'data_fetch.log'))
 handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
 logger.addHandler(handler)
+
+# Try Render's secret file path first, then fall back to local development path
+render_token_path = os.path.join(root_dir, 'etc/secrets', 'token.json')
+local_token_path = os.path.join(root_dir, 'tokens', 'token.json')
+
+# Use Render path if it exists (production), otherwise use local path (development)
+if os.path.exists(render_token_path):
+    TOKEN_FILE_PATH = render_token_path
+    logger.info("Using Render secret file path for token.json")
+elif os.path.exists(local_token_path):
+    TOKEN_FILE_PATH = local_token_path
+    logger.info("Using local development path for token.json")
+else:
+    # Default to Render path if neither exists (will cause an error, but that's expected)
+    TOKEN_FILE_PATH = render_token_path
+    logger.warning("Neither Render nor local token file found, defaulting to Render path")
 
 
 def get_gspread_client() -> gspread.Client:
