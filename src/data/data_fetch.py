@@ -14,7 +14,7 @@ import pandas as pd
 # Get the absolute path to the token file relative to this script
 current_dir = os.path.dirname(os.path.abspath(__file__))
 root_dir = os.path.dirname(current_dir)
-TOKEN_FILE_PATH = os.path.join(root_dir, 'tokens', 'token.json')
+TOKEN_FILE_PATH = os.path.join(root_dir, 'etc/secrets', 'token.json')
 
 # Set up logging
 logger = logging.getLogger('data_fetch')
